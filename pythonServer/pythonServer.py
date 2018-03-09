@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import hashlib
 from flask import Flask, request, session, g, redirect, url_for, abort, render_template, flash
 
 
@@ -9,12 +10,20 @@ app.config.from_object(__name__)
 app.config.update(dict(
     DATABASE=os.path.join(app.root_path, "pythonServer.db"),
     SECRET_KEY="development key",
-    USERNAME="admin",
-    PASSWORD="default"
 ))
 
 SELECT_QUERY = "select title, text from entries order by id desc"
 INSERT_QUERY = "insert into entries (title, text) values (?, ?)"
+
+SELECT_USER = "select username from users where username=? AND password=?"
+INSERT_USER = "insert into users (username, password) values (?, ?)"
+
+USER_EXISTS = "select username from users where username=?"
+
+
+SALT="AlwaysBeSalthingDemHashes!"
+
+hashfunc = lambda password: hashlib.sha256(str.encode(password + SALT)).hexdigest()
 
 def connect_db():
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -69,11 +78,12 @@ def add_entry():
 def login():
     error = None
     if request.method == 'POST':
-        #Whats Wrong With This!
-        if request.form['username'] != app.config['USERNAME']:
-            error = "Invalid username"
-        elif request.form['password'] != app.config['PASSWORD']:
-            error = "Invalid Password"
+        db = get_db()
+        username = request.form['username']
+        password = hashfunc(request.form['password'])
+        verify = db.execute(SELECT_USER, [username, password]).fetchone()
+        if verify == None:
+            error = "Login Error"
         else:
             session['logged_in'] = True
             flash('You were logged in')
@@ -89,6 +99,23 @@ def logout():
 
 
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    error = None
+    if request.method == 'POST':
+        db = get_db()
+        username = request.form['username']
+        password = hashfunc(request.form['password'])
+        userExists = db.execute(USER_EXISTS, [username]).fetchone()
+        if userExists != None:
+            error = "Username Taken!"
+        else:
+            db.execute(INSERT_USER, [username, password])
+            db.commit()
+            session['logged_in'] = True
+            flash('You were registered and logged in')
+            return redirect(url_for('show_entries'))
+    return render_template('register.html', error=error)
 
 
 
