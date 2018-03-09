@@ -1,0 +1,3 @@
+graft pythonServer/templates
+graft pythonServer/static
+include pythonServer/schema.sql
