@@ -12,8 +12,8 @@ app.config.update(dict(
     SECRET_KEY="development key",
 ))
 
-SELECT_QUERY = "select title, text from entries order by id desc"
-INSERT_QUERY = "insert into entries (title, text) values (?, ?)"
+SELECT_QUERY = "select username, title, text from entries order by id desc"
+INSERT_QUERY = "insert into entries (username, title, text) values (?, ?, ?)"
 
 SELECT_USER = "select username from users where username=? AND password=?"
 INSERT_USER = "insert into users (username, password) values (?, ?)"
@@ -41,6 +41,7 @@ def get_db():
 def close_db(error):
     if hasattr(g, "sqlite_db"):
         g.sqlite_db.close()
+   # session.pop('logged_in', None)
 
 
 def init_db():
@@ -68,7 +69,7 @@ def add_entry():
     if not session.get('logged_in'):
         abort(401)
     db = get_db()
-    db.execute(INSERT_QUERY, [request.form['title'], request.form['text']])
+    db.execute(INSERT_QUERY, [session['user'], request.form['title'], request.form['text']])
     db.commit()
     flash("New entry was posted")
     return redirect(url_for('show_entries'))
@@ -85,6 +86,7 @@ def login():
         if verify == None:
             error = "Login Error"
         else:
+            session['user'] = username
             session['logged_in'] = True
             flash('You were logged in')
             return redirect(url_for('show_entries'))
